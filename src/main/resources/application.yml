@@ -1,0 +1,15 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: application
+  profiles:
+    active: dev,db
+  #关闭模板缓存
+  thymeleaf:
+    cache: false
+
+
+
+

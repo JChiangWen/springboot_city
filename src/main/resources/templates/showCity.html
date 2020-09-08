@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>1111</title>
+    <!--引入样式-->
+    <link rel="stylesheet" th:href="@{/bootstrap/css/bootstrap.css}">
+    <link rel="stylesheet" th:href="@{/angularjs/pagination.css}">
+    <!--引入js-->
+    <script th:src="@{/bootstrap/js/jquery.min.js}"></script>
+    <script th:src="@{/bootstrap/js/bootstrap.js}"></script>
+    <script th:src="@{/angularjs/angular.min.js}"></script>
+    <script th:src="@{/angularjs/pagination.js}"></script>
+    <script>
+        /*定义一个App*/
+        var app = angular.module("myApp",['pagination']);
+        app.controller("myController",function ($scope,$http){
+            $scope.paginationConf = {
+                currentPage:1,                  /*当前页*/
+                itemsPerPage:5,                 /*当前总页数*/
+                totalItems:1000,                /*总条数*/
+                perPageOptions:[1,2,3,4,5],     /*单页数据量,可选数*/
+                onChange:function(){
+                    /*跳转前清空选中数组*/
+                    delArray = [];
+                    /*页码和初始化时调用*/
+                    $scope.selectPageBySearch();
+                }
+            }
+
+            /*分页综合查询方法*/
+            $scope.selectPageBySearch = function (){
+                /*获取分页数据*/
+                let pageIndex = $scope.paginationConf.currentPage;
+                let pageSize = $scope.paginationConf.itemsPerPage;                              /*逗号后面,传递到RequestBody*/
+                $http.post("/city/selectPageBySearch?pageIndex="+pageIndex+"&pageSize="+pageSize,$scope.searchCity
+                ).success(function (pageInfo){
+                    $scope.citys = pageInfo.list;
+                    $scope.paginationConf.totalItems = pageInfo.total;
+                })
+            }
+
+            /*分页综合查询按钮方法*/
+            $scope.selectPageBySearchBtn = function (){
+                /*初始化为第一页*/
+                $scope.paginationConf.currentPage = 1;
+                /*调用分页综合查询方法*/
+                $scope.selectPageBySearch();
+            }
+
+            /*查询省份*/
+            $scope.selectPro = function (){
+                $http({
+                    method:"get",
+                    url:"/city/selectPro",
+                }).success(function (data){
+                    $scope.pros = data;
+                    $scope.pros.unshift({pid:0,pname:"---请选择省---"});
+                })
+            }
+            /*查询省份*/
+            $scope.selectPro2 = function (){
+                $http({
+                    method:"get",
+                    url:"/city/selectPro",
+                }).success(function (data){
+                    $scope.pros2 = data;
+                    $scope.pros2.unshift({pid:0,pname:"---请选择省---"});
+                })
+            }
+            /*添加预处理方法*/
+            $scope.insetCity = function (){
+                /*重新查询省份*/
+                $scope.selectPro2();
+                /*重置从城市试题*/
+                $scope.cityEntity = {pid:0,pname:"",fid:0};
+                /*显示模态框*/
+                $('#myModal').modal('show');
+            }
+            /*修改预处理方法*/
+            $scope.updateCity = function (pid){
+                /*重新查询省份*/
+                $scope.selectPro2();
+                /*查询数据*/
+                $http.get("/city/selectOne/"+pid).success(function (data){
+                    /*更新为需要更新的数据*/
+                    $scope.cityEntity = data;
+                    /*显示模态框*/
+                    $('#myModal').modal('show');
+                })
+            }
+            /*提交城市方法*/
+            $scope.subCity = function (){
+                $http.post("/city/saveOrUpdate",$scope.cityEntity).success(function (data){
+                    if (data){
+                        console.log("提交成功")
+                    }else{
+                        alert("提交失败")
+                    }
+                    $scope.selectPageBySearch();
+                    /*关闭模态框*/
+                    $('#myModal').modal('hide');
+
+                })
+            }
+
+
+            /*删除单个*/
+            $scope.deleteCity = function (pid) {
+                $http.post("/city/deleteCity/pid").success(function (data){
+                    if (data > 0){
+                        console.log("删除成功")
+                    }else{
+                        alert("删除失败")
+                    }
+                    /*重新查询*/
+                    $scope.selectPageBySearch()
+                    $scope.selectPro()
+                })
+            }
+            let delArray = [];
+
+            /*全选按钮*/
+            $scope.checkAll = function ($event) {
+                if ($event.target.checked){
+                    /*按钮全都不选中*/
+                    $(".delCheck").prop("checked", false);
+                    /*初始化*/
+                    delArray = [];
+                    /*遍历选中*/
+                    /*获取del复选框*/
+                    $(".delCheck").each(function (i,x){
+                        /* 简单讲就是ng内部的在进行一次脏检查循环时，
+                        如果因某些事件又触发了新的脏检查循环（比如这里的点击），
+                        就会报错，加setTimeout或者使用内置的$timeout均是利用js的event tick机制，
+                        将当前触发的脏检查循环延迟到了下一个event tick中。*/
+                        setTimeout(function () {
+                            x.click();
+                        })
+                    })
+                }else{
+                    /*多选按钮都不选中*/
+                    $(".delCheck").prop("checked",false);
+                    /*初始化*/
+                    delArray = [];
+                }
+            }
+           /* $scope.checkAll = function ($event) {
+                if ($event.target.checked){
+                    $event.target.x = true;
+                }else{
+                    $event.target.x = false;
+                }
+            }*/
+
+            /*更新状态,并更新数组*/
+            $scope.updateCheck = function ($event,pid){
+                /*判断事件状态*/
+                if ($event.target.checked){
+                    /*向待删除数组添加数据*/
+                    delArray.push(pid);
+                }else{
+                    /*获取要删除数据的下标*/
+                    let index = delArray.indexOf(pid);
+                    /*移出数据 , 移除的位置 , 移除元素个数*/
+                    delArray.splice(index,1);
+                }
+            }
+
+            /*删除多个*/
+            $scope.deleteCityList = function (){
+                if(delArray.length == 0){
+                    alert("请选择需要删除的数据");
+                }else{
+                    if (confirm("确定要删除?")){
+                        $http.post("/city/deleteCityList",delArray).success(function (data){
+                            /*判断删除长度是否正常*/
+                            if (data == delArray.length){
+                                console.log("批量删除成功")
+                            }else{
+                                alert("批量删除失败")
+                            }
+                            $scope.selectPageBySearch();
+                        })
+                    }
+                }
+            }
+
+        })
+    </script>
+</head>
+<body>
+
+<div class="container" ng-app="myApp" ng-controller="myController" ng-init="selectPro()">
+    <!--模态框-->
+    <div id="myModal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <input type="hidden" ng-model="cityEntity.pid">
+                            <label for="cpname"> 城市名称:</label>
+                            <input class="form-control" id="cpname" type="text" ng-model="cityEntity.pname">
+                        </div>
+                        <div class="form-group">
+                            <label for="cfid"> 所属省份:</label>
+                            <select class="form-control" id="cfid" ng-model="cityEntity.fid" ng-options="p.pid as p.pname for p in pros2"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" ng-click="subCity()">提交</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+    <div class="panel panel-info">
+        <div class="page-header">
+            <h1>展示城市</h1>
+            <div class="form-inline">
+                <input class="hidden" ng-model="searchCity.pid" ng-init="searchCity.pid=0">
+                城市名称:<input class="form-control" type="text" ng-model="searchCity.pname" ng-init="searchCity.pname=''">
+                省份:<select class="form-control" ng-model="searchCity.fid" ng-init="searchCity.fid=0" ng-options="p.pid as p.pname for p in pros"></select>
+                <button class="btn btn-success" type="button" ng-click="selectPageBySearchBtn()">综合查询</button>
+                <button class="btn btn-info" type="button" ng-click="insetCity()">添加城市</button>
+                <button class="btn btn-danger" type="button" ng-click="deleteCityList()">批量删除</button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <table class="table-striped table-bordered table table-hover">
+                <tr>
+                    <td>
+                        <input id="checkAll" type="checkbox" ng-model="all" ng-click="checkAll($event)">
+                        <label for="checkAll">全选</label>
+                    </td>
+                    <td>编号</td>
+                    <td>名称</td>
+                    <td>所属省标号</td>
+                    <td>操作</td>
+                </tr>
+                <tr ng-repeat="c in citys"><!--ng-checked="all" ng-value="false" ng-model="x" ng-change="updateCheck($event,c.pid)"-->
+                    <td><input class="delCheck" type="checkbox" ng-click="updateCheck($event,c.pid)"></td>
+                    <td>{{c.pid}}</td>
+                    <td>{{c.pname}}</td>
+                    <td>{{c.fid}}</td>
+                    <td>
+                        <button class="btn btn-success" type="button" ng-click="updateCity(c.pid)">修改</button>
+                        <button class="btn btn-danger" type="button" ng-click="deleteCity(c.pid)">删除</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="5">
+                        <tm-pagination conf="paginationConf"></tm-pagination>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
